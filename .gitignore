@@ -1,0 +1,27 @@
+# ---- Keil MDK build output (regenerable) ----
+MDK-ARM/smarthouse/
+MDK-ARM/DebugConfig/
+MDK-ARM/RTE/
+MDK-ARM/*.lst
+MDK-ARM/*.dep
+MDK-ARM/*.scvd
+MDK-ARM/JLinkLog.txt
+MDK-ARM/*.uvguix.*
+
+# ---- build intermediates (anywhere) ----
+*.o
+*.crf
+*.d
+*.axf
+*.hex
+*.bin
+*.map
+*.sct
+*.lnp
+*.htm
+*.dep
+*.bak
+*.tmp
+
+# ---- misc ----
+*.zip
