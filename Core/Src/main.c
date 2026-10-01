@@ -38,6 +38,7 @@
 #include "bh1750.h"
 #include "gps.h"
 #include "mpu6050.h"
+#include "jw01.h"
 #include "param.h"
 #include "rc522.h"
 #include <string.h>
@@ -93,6 +94,10 @@ float gpsSpeed     = 0.0f;     /* 地面速度 km/h */
 float gpsHour      = 0.0f;     /* 时 0~23 (UTC) */
 float gpsMinute    = 0.0f;     /* 分 0~59 (UTC) */
 float gpsSecond    = 0.0f;     /* 秒 0~59 (UTC) */
+
+/* ---- JW01 空气质量传感器（USART3，与 GPS 共用，单独上报） ---- */
+float jwVal1    = 0.0f;        /* 字段1 = 大端(raw1,raw2) */
+float jwVal2    = 0.0f;        /* 字段2 = 大端(raw3,raw4) */
 
 /* ---- MPU6050/6500 姿态角（I2C1 与 OLED/BH1750 共用，单独上报） ---- */
 float mpuRoll  = 0.0f;         /* 绕 X 轴 度 */
@@ -224,6 +229,9 @@ int main(void)
   /* GY-NEO6MV2 GPS（USART3_RX = PB11，中断接收） */
   GPS_Init();
 
+  /* JW01 三合一空气质量传感器（USART3，与 GPS 共用，中断接收） */
+  JW01_Init();
+
   /* RC522 RFID 读卡模块（软件 SPI：PA15=CS, PA5=SCK, PA7=MOSI, PA6=MISO） */
   
 
@@ -289,6 +297,7 @@ int main(void)
       static uint32_t last_ultr = 0;
       static uint32_t last_bh = 0;
       static uint32_t last_gps = 0;
+      static uint32_t last_jw01 = 0;
       static uint32_t last_mpu = 0;
       static uint32_t last_rfid = 0;
       static uint32_t last_report = 0;
@@ -438,6 +447,37 @@ int main(void)
         else if(g.updated)
         {
           UsartPrintf(USART_DEBUG, "[GPS] no fix (sats=%u)\r\n", (unsigned)g.sats);
+        }
+      }
+
+      /* 2e-2. 每 1 秒读一次 JW01 空气质量（6 字节 0x2C 帧），
+              与 GPS 共用 USART3，二进制帧在中断里解析 */
+      if((now - last_jw01) >= 1000u)
+      {
+        last_jw01 = now;
+
+        jw01_data_t j;
+        JW01_GetData(&j);
+        if(j.valid)
+        {
+          jwVal1 = (float)j.val1;
+          jwVal2 = (float)j.val2;
+
+          /* 原始帧 + 4 个数据字节 + 两种 16 位拆法，方便对照手册 */
+          UsartPrintf(USART_DEBUG,
+                      "[JW01] raw=%02X %02X %02X %02X %02X %02X\r\n",
+                      j.raw[0], j.raw[1], j.raw[2], j.raw[3], j.raw[4], j.raw[5]);
+          UsartPrintf(USART_DEBUG,
+                      "[JW01] d0=%u d1=%u d2=%u d3=%u | val1=%u val2=%u | ck=%02X/%02X\r\n",
+                      (unsigned)j.data[0], (unsigned)j.data[1],
+                      (unsigned)j.data[2], (unsigned)j.data[3],
+                      (unsigned)j.val1, (unsigned)j.val2,
+                      j.checksum_rx, j.checksum_calc);
+        }
+        else if(j.frames_err)
+        {
+          UsartPrintf(USART_DEBUG, "[JW01] checksum fail (err=%lu)\r\n",
+                      (unsigned long)j.frames_err);
         }
       }
 

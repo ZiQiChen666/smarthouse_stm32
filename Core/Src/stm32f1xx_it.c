@@ -25,6 +25,7 @@
 #include "usart.h"
 #include "esp8266.h"
 #include "gps.h"
+#include "jw01.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -275,7 +276,8 @@ void USART3_IRQHandler(void)
      __HAL_UART_GET_FLAG(&huart3, UART_FLAG_ORE)  != RESET)
   {
     uint8_t rx = (uint8_t)(huart3.Instance->DR & 0xFF);
-    GPS_FeedByte(rx);
+    /* 统一交给路由器：按帧首在 GPS($) 与 JW01(0xFF) 之间自动分流 */
+    JW01_RouteByte(rx);
   }
   /* USER CODE END USART3_IRQn 0 */
   /* USER CODE BEGIN USART3_IRQn 1 */

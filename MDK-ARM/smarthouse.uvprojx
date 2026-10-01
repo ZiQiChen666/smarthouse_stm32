@@ -470,6 +470,11 @@
               <FilePath>../Core/Src/gps.c</FilePath>
             </File>
             <File>
+              <FileName>jw01.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Core/Src/jw01.c</FilePath>
+            </File>
+            <File>
               <FileName>mpu6050.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Core/Src/mpu6050.c</FilePath>

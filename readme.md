@@ -88,5 +88,7 @@ ADC PA0 PA1 PA4 PB0
 
 增加MPU6050角度解析
 
+增加flash上电读取阈值
 
+增加RC522, PA15 --- SDA  PA5---CLK  PA6 MISO PA7 MOSI  IRQ和复位都接上拉
 
