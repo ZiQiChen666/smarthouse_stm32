@@ -230,15 +230,25 @@ int main(void)
         last_dht = now;
 
         float t = 0.0f, h = 0.0f;
-        if(DHT11_Read(&t, &h) == 0)
+        uint8_t rc = DHT11_Read(&t, &h);
+        if(rc == 0)
         {
           dhtTemperature = t;
           dhtHumidity    = h;
-          UsartPrintf(USART_DEBUG, "[DHT11] T=%.1f H=%.1f\r\n", t, h);
+          {
+            uint8_t raw[5];
+            DHT11_GetRaw(raw);
+            UsartPrintf(USART_DEBUG, "[DHT11] T=%.1f H=%.1f raw=%02X %02X %02X %02X %02X\r\n",
+                        t, h, raw[0], raw[1], raw[2], raw[3], raw[4]);
+          }
         }
         else
         {
-          UsartPrintf(USART_DEBUG, "[DHT11] read fail\r\n");
+          /* rc: 1=无响应 2=响应低超时 3=响应高超时 4=读bit超时 5=校验错 */
+          uint8_t raw[5];
+          DHT11_GetRaw(raw);
+          UsartPrintf(USART_DEBUG, "[DHT11] read fail, rc=%u raw=%02X %02X %02X %02X %02X\r\n",
+                      rc, raw[0], raw[1], raw[2], raw[3], raw[4]);
         }
       }
 

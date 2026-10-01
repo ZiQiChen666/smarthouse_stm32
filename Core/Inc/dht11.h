@@ -20,4 +20,7 @@
 uint8_t DHT11_Init(void);
 uint8_t DHT11_Read(float *temperature, float *humidity);
 
+/* 调试用：取最近一次读到的 5 个原始字节 [H_int, H_dec, T_int, T_dec, Sum] */
+void DHT11_GetRaw(uint8_t out[5]);
+
 #endif /* __DHT11_H */
