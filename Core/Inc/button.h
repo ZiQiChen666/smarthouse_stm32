@@ -38,6 +38,5 @@ uint8_t Button_IsDown(button_id_t id);           /* effective pressed state    *
 /* ---- simulation / debug injection ---- */
 void Button_SimPress(button_id_t id, uint32_t ms); /* press, auto-release after ms */
 void Button_SimSet(button_id_t id, uint8_t down);  /* set state, no auto-release   */
-uint8_t Button_SimGet(button_id_t id);
 
 #endif /* __BUTTON_H */

@@ -129,12 +129,6 @@ void Button_SimSet(button_id_t id, uint8_t down)
     s_btn[id].sim_down = down ? 1u : 0u;
 }
 
-uint8_t Button_SimGet(button_id_t id)
-{
-    if (id >= BTN_COUNT) return 0;
-    return s_btn[id].sim_down;
-}
-
 /* TIM2 update interrupt -> key scan */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {

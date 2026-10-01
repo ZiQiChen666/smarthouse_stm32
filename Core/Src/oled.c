@@ -100,24 +100,6 @@ void OLED_Clear_some(uint8_t x, uint8_t y, uint8_t x2, uint8_t y2)
 	}
 }
 
-void OLED_Refresh_some(uint8_t x, uint8_t y, uint8_t x2, uint8_t y2)
-{
-	int j = 0, i = 0;
-	int yy = y / 8;
-	int yy2 = y2 / 8 + 1;
-	if (!g_oled_ok) return;
-	for (j = yy; j < yy2; j++)
-	{
-		OLED_WriteCmd(0xB0 + j);
-		OLED_WriteCmd(0x00);
-		OLED_WriteCmd(0x10);
-		for (i = x; i < x2; i++)
-		{
-			OLED_WriteData(g_oled_gram[i][j]);
-		}
-	}
-}
-
 void OLED_Refresh(void)
 {
 	int j = 0, i = 0;
@@ -209,39 +191,6 @@ void OLED_DrawString(uint8_t x, uint8_t y, const uint8_t *str, uint8_t size)
 	}
 }
 
-void OLED_ShowNum(uint8_t x, uint8_t y, uint32_t num, uint8_t len, uint8_t size)
-{
-	uint8_t i, temp;
-	uint8_t enshow = 0;
-	for (i = 0; i < len; i++)
-	{
-		temp = (num / OLED_Pow(10, len - i - 1)) % 10;
-		if (enshow == 0 && i < (len - 1))
-		{
-			if (temp == 0)
-			{
-				OLED_ShowChar(x + i * ((size == 16) ? 8 : 6), y, ' ', size);
-				continue;
-			}
-			else
-			{
-				enshow = 1;
-			}
-		}
-		OLED_ShowChar(x + i * ((size == 16) ? 8 : 6), y, temp + '0', size);
-	}
-}
-
-uint32_t OLED_Pow(uint8_t m, uint8_t n)
-{
-	uint32_t result = 1;
-	while (n--)
-	{
-		result *= m;
-	}
-	return result;
-}
-
 void OLED_Draw_Point(uint8_t x, uint8_t y)
 {
 	uint8_t pos, bx, temp = 0;
@@ -276,68 +225,5 @@ void OLED_Draw_Line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2)
 		yerr += delta_y;
 		if (xerr > distance) { xerr -= distance; uRow += incx; }
 		if (yerr > distance) { yerr -= distance; uCol += incy; }
-	}
-}
-
-/* --------------------------- 应用层：英文显示 --------------------------- */
-static void OLED_ShowValue(uint8_t x, uint8_t y, float v)
-{
-	char buf[12];
-	if (v < 0.0f)   v = 0.0f;
-	if (v > 999.9f) v = 999.9f;
-	snprintf(buf, sizeof(buf), "%.1f", v);
-	OLED_ShowString(x, y, (const uint8_t *)buf, 16);
-}
-
-static void OLED_ShowOnOff(uint8_t x, uint8_t y, float s)
-{
-	OLED_ShowString(x, y, (const uint8_t *)((s >= 0.5f) ? "ON " : "OFF"), 16);
-}
-
-/**
-  * @brief  分页显示物模型数据（英文）
-  * @param  page: 0=传感器  1=上限  2=下限  3=开关
-  */
-void OLED_ShowPage(uint8_t page)
-{
-	extern float temperature, humidity, light, waterlevel;
-	extern float temperatureMax, temperatureMin;
-	extern float humidityMax, humidityMin;
-	extern float lightMax, lightMin;
-	extern float waterlevelMax, waterlevelMin;
-	extern float fanS, lightS, pumpS;
-
-	if (!g_oled_ok) return;
-
-	OLED_Clear();
-
-	switch (page % 4u)
-	{
-	case 0: /* 实时值 */
-		OLED_ShowString(0, 0, (const uint8_t *)"TEMP :", 16); OLED_ShowValue(56, 0, temperature);
-		OLED_ShowString(0, 2, (const uint8_t *)"HUMI :", 16); OLED_ShowValue(56, 2, humidity);
-		OLED_ShowString(0, 4, (const uint8_t *)"LIGHT:", 16); OLED_ShowValue(56, 4, light);
-		OLED_ShowString(0, 6, (const uint8_t *)"WATER:", 16); OLED_ShowValue(56, 6, waterlevel);
-		break;
-
-	case 1: /* 上限阈值 */
-		OLED_ShowString(0, 0, (const uint8_t *)"T-MAX:", 16); OLED_ShowValue(56, 0, temperatureMax);
-		OLED_ShowString(0, 2, (const uint8_t *)"H-MAX:", 16); OLED_ShowValue(56, 2, humidityMax);
-		OLED_ShowString(0, 4, (const uint8_t *)"L-MAX:", 16); OLED_ShowValue(56, 4, lightMax);
-		OLED_ShowString(0, 6, (const uint8_t *)"W-MAX:", 16); OLED_ShowValue(56, 6, waterlevelMax);
-		break;
-
-	case 2: /* 下限阈值 */
-		OLED_ShowString(0, 0, (const uint8_t *)"T-MIN:", 16); OLED_ShowValue(56, 0, temperatureMin);
-		OLED_ShowString(0, 2, (const uint8_t *)"H-MIN:", 16); OLED_ShowValue(56, 2, humidityMin);
-		OLED_ShowString(0, 4, (const uint8_t *)"L-MIN:", 16); OLED_ShowValue(56, 4, lightMin);
-		OLED_ShowString(0, 6, (const uint8_t *)"W-MIN:", 16); OLED_ShowValue(56, 6, waterlevelMin);
-		break;
-
-	default: /* 开关状态 */
-		OLED_ShowString(0, 0, (const uint8_t *)"FAN  :", 16); OLED_ShowOnOff(56, 0, fanS);
-		OLED_ShowString(0, 2, (const uint8_t *)"LIGHT:", 16); OLED_ShowOnOff(56, 2, lightS);
-		OLED_ShowString(0, 4, (const uint8_t *)"PUMP :", 16); OLED_ShowOnOff(56, 4, pumpS);
-		break;
 	}
 }

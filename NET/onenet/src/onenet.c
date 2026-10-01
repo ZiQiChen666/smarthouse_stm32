@@ -43,8 +43,7 @@
 
 #include "cJSON.h"
 
-cJSON *raw_json, *params_json, *LED_json,*Temp_Max_json,*Humi_Max_json;
-cJSON *ttt1,*ttt2,*ttt3,*ttt4,*ttt5;
+cJSON *raw_json, *params_json;
 
 /* ---- 物模型变量（定义在 main.c） ---- */
 /* 上报：传感器值 */
