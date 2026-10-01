@@ -35,6 +35,7 @@
 #include "ui.h"
 #include "dht11.h"
 #include "hcsr04.h"
+#include "bh1750.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -72,6 +73,9 @@ float dhtHumidity    = 0.0f;   /* DHT11 湿度 %RH */
 
 /* ---- HC-SR04 超声波测距（TRIG=PB8, ECHO=PB9，单独上报） ---- */
 float distance = 0.0f;         /* 距离 cm */
+
+/* ---- BH1750 实测光照（I2C1 与 OLED 共用，单独上报） ---- */
+float bhLight = 0.0f;          /* 光照 lx */
 
 /* ---- 阈值（仅接收，不上报） ---- */
 float temperatureMax = 50.0f;
@@ -172,6 +176,12 @@ int main(void)
   /* HC-SR04 超声波测距（TRIG=PB8, ECHO=PB9） */
   HCSR04_Init();
 
+  /* BH1750 光照传感器（I2C1，与 OLED 共用 PB6/PB7） */
+  if(BH1750_Init() == 0)
+    UsartPrintf(USART_DEBUG, "[BH1750] init ok\r\n");
+  else
+    UsartPrintf(USART_DEBUG, "[BH1750] init fail, not found on I2C1 (try 'i2cscan')\r\n");
+
   /* 按键（PB12~PB15）+ TIM2 10ms 扫描中断 */
   Button_Init();
 
@@ -206,6 +216,7 @@ int main(void)
       static uint32_t last_adc = 0;
       static uint32_t last_dht = 0;
       static uint32_t last_ultr = 0;
+      static uint32_t last_bh = 0;
       static uint32_t last_report = 0;
       static uint32_t last_hb = 0;
       uint32_t now = HAL_GetTick();
@@ -279,7 +290,38 @@ int main(void)
         }
       }
 
-      /* 2d. 每 3 秒把当前值上报到 OneNET */
+      /* 2d. 每 500ms 读一次 BH1750 光照（转换约 120ms，间隔需 >= 180ms） */
+      if((now - last_bh) >= 500u)
+      {
+        last_bh = now;
+
+        float lx = 0.0f;
+
+        /* 掉线/首次探测失败时周期性重试，避免永久离线 */
+        if(!BH1750_IsReady())
+        {
+          if(BH1750_ReInit() != 0)
+          {
+            UsartPrintf(USART_DEBUG, "[BH1750] still not found (use 'i2cscan')\r\n");
+            goto bh_done;
+          }
+          UsartPrintf(USART_DEBUG, "[BH1750] online\r\n");
+        }
+
+        if(BH1750_Read(&lx) == 0)
+        {
+          bhLight = lx;
+          UsartPrintf(USART_DEBUG, "[BH1750] light=%.0f lx\r\n", lx);
+        }
+        else
+        {
+          UsartPrintf(USART_DEBUG, "[BH1750] read fail (will retry)\r\n");
+        }
+
+      bh_done:;
+      }
+
+      /* 2e. 每 3 秒把当前值上报到 OneNET */
       if((now - last_report) >= 3000u)
       {
         last_report = now;

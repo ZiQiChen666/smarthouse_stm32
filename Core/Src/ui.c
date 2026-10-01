@@ -34,7 +34,9 @@ static uint8_t     s_curve_type = 0;
 static uint8_t     s_need_redraw = 1;
 
 /* curve history: [channel][sample], ring buffer */
-static float   s_hist[4][CURVE_LEN];
+/* 曲线历史：存 uint8_t（0~100），绘图精度足够（纵向只有 51 pixel）。
+ * 原来是 float[4][128] = 2048 字节，改成 uint8_t[4][128] = 512 字节。 */
+static uint8_t s_hist[4][CURVE_LEN];
 static uint8_t s_hist_cnt = 0;
 static uint8_t s_hist_head = 0;
 
@@ -163,12 +165,11 @@ static void ui_draw_curve(void)
     /* one 200ms sample per X pixel, newest sample at x=127 */
     for (i = 0; i < cnt; i++) {
         uint8_t idx = (uint8_t)((s_hist_head + CURVE_LEN - cnt + i) % CURVE_LEN);
-        float v = s_hist[s_curve_type][idx];
+        uint8_t v = s_hist[s_curve_type][idx];   /* 0~100 */
         uint8_t x, y;
-        if (v < 0.0f)   v = 0.0f;
-        if (v > 100.0f) v = 100.0f;
+        if (v > 100u) v = 100u;
         x = (uint8_t)(127u - (cnt - 1u - i));   /* right-aligned */
-        y = (uint8_t)(63.0f - v * 51.0f / 100.0f);
+        y = (uint8_t)(63u - (uint16_t)v * 51u / 100u);
         if (i > 0)
             OLED_Draw_Line(prev_x, prev_y, x, y);
         prev_x = x;
@@ -321,12 +322,21 @@ void UI_Task(void)
     }
 }
 
+/* 浮点值限制到 0~100 并转成 uint8_t */
+static uint8_t ui_clamp_u8(float v)
+{
+    if (v <= 0.0f)   return 0u;
+    if (v >= 100.0f) return 100u;
+    return (uint8_t)(v + 0.5f);
+}
+
 void UI_PushSample(float t, float h, float l, float w)
 {
-    s_hist[0][s_hist_head] = t;
-    s_hist[1][s_hist_head] = h;
-    s_hist[2][s_hist_head] = l;
-    s_hist[3][s_hist_head] = w;
+    /* 存成 0~100 的整数，节省 RAM */
+    s_hist[0][s_hist_head] = ui_clamp_u8(t);
+    s_hist[1][s_hist_head] = ui_clamp_u8(h);
+    s_hist[2][s_hist_head] = ui_clamp_u8(l);
+    s_hist[3][s_hist_head] = ui_clamp_u8(w);
     s_hist_head = (uint8_t)((s_hist_head + 1) % CURVE_LEN);
     if (s_hist_cnt < CURVE_LEN) s_hist_cnt++;
 

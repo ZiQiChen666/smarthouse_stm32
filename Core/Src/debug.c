@@ -21,6 +21,7 @@
 #include "debug.h"
 #include "usart.h"
 #include "button.h"
+#include "i2c_scan.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -32,6 +33,7 @@ extern float light;
 extern float waterlevel;
 extern float dhtTemperature, dhtHumidity;
 extern float distance;
+extern float bhLight;
 extern float temperatureMax, temperatureMin;
 extern float humidityMax, humidityMin;
 extern float lightMax, lightMin;
@@ -61,6 +63,7 @@ static const debug_var_t g_vars[] = {
 	{ "dhtTemperature", &dhtTemperature },
 	{ "dhtHumidity",    &dhtHumidity    },
 	{ "distance",       &distance       },
+	{ "bhLight",        &bhLight        },
 	{ "temperatureMax", &temperatureMax },
 	{ "temperatureMin", &temperatureMin },
 	{ "humidityMax",    &humidityMax    },
@@ -130,6 +133,7 @@ static void cmd_help(void)
 	UsartPrintf(USART_DEBUG, "[DBG] read <name> | write <name> <value> | vars | help\r\n");
 	UsartPrintf(USART_DEBUG, "[DBG] <PB12..PB15> Press <ms> | release <PBxx> | adc on|off\r\n");
 	UsartPrintf(USART_DEBUG, "[DBG] PB12=+ PB13=- PB14=OK PB15=Back (short<700ms, long>=700ms)\r\n");
+	UsartPrintf(USART_DEBUG, "[DBG] i2cscan\r\n");
 }
 
 static void cmd_vars(void)
@@ -312,6 +316,10 @@ void Debug_Task(void)
 			g_adc_enable = 0;
 			UsartPrintf(USART_DEBUG, "[DBG] adc off\r\n");
 		}
+	}
+	else if (streq_ci(tok[0], "i2cscan"))
+	{
+		I2C_ScanBus();
 	}
 	else if (n >= 3 && streq_ci(tok[1], "press"))       /* PB12 Press 2000 */
 	{

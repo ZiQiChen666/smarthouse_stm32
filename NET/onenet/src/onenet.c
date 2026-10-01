@@ -56,6 +56,8 @@ extern float dhtTemperature;
 extern float dhtHumidity;
 /* 上报：HC-SR04 超声波距离 */
 extern float distance;
+/* 上报：BH1750 实测光照 */
+extern float bhLight;
 /* 接收：阈值 */
 extern float temperatureMax;
 extern float temperatureMin;
@@ -437,7 +439,7 @@ static unsigned char OneNet_GetParamValue(cJSON *params, const char *key, float 
 /* 组装上行 JSON：只上报 4 个传感器属性 */
 unsigned char OneNet_FillBuf(char *buf)
 {
-	snprintf(buf, 256,
+	snprintf(buf, 384,
 		 "{\"id\":\"123\",\"params\":{"
 		 "\"temperature\":{\"value\":%.2f},"
 		 "\"humidity\":{\"value\":%.2f},"
@@ -445,9 +447,10 @@ unsigned char OneNet_FillBuf(char *buf)
 		 "\"waterlevel\":{\"value\":%.2f},"
 		 "\"dhtTemperature\":{\"value\":%.2f},"
 		 "\"dhtHumidity\":{\"value\":%.2f},"
-		 "\"distance\":{\"value\":%.2f}"
+		 "\"distance\":{\"value\":%.2f},"
+		 "\"bhLight\":{\"value\":%.2f}"
 		 "}}",
-		 temperature, humidity, light, waterlevel, dhtTemperature, dhtHumidity, distance);
+		 temperature, humidity, light, waterlevel, dhtTemperature, dhtHumidity, distance, bhLight);
 
 	return (unsigned char)strlen(buf);
 
@@ -469,7 +472,7 @@ void OneNet_SendData(void)
 	
 	MQTT_PACKET_STRUCTURE mqttPacket = {NULL, 0, 0, 0};												//?????
 	
-	char buf[256];
+	char buf[384];
 	
 	short body_len = 0, i = 0;
 	

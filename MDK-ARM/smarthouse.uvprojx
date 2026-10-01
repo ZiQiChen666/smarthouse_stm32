@@ -455,6 +455,16 @@
               <FilePath>../Core/Src/hcsr04.c</FilePath>
             </File>
             <File>
+              <FileName>bh1750.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Core/Src/bh1750.c</FilePath>
+            </File>
+            <File>
+              <FileName>i2c_scan.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Core/Src/i2c_scan.c</FilePath>
+            </File>
+            <File>
               <FileName>stm32f1xx_it.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Core/Src/stm32f1xx_it.c</FilePath>
