@@ -12,7 +12,12 @@ extern float lightMax, lightMin;
 extern float waterlevelMax, waterlevelMin;
 extern float fanS, lightS, pumpS;
 
-#define CURVE_LEN   64
+/*
+ * Curve history.
+ * ADC sampling (and therefore curve points) run every 200 ms, so one
+ * sample per X pixel = 128 * 0.2 s = ~25.6 s of history on screen.
+ */
+#define CURVE_LEN   128
 
 typedef enum {
     SCREEN_MAIN = 0,
@@ -140,27 +145,29 @@ static void ui_draw_control(void)
 static void ui_draw_curve(void)
 {
     char title[24];
-    uint8_t cnt = s_hist_cnt;
+    uint8_t cnt = s_hist_cnt;   /* number of valid samples (<= 128) */
     uint8_t i;
     uint8_t prev_x = 0, prev_y = 0;
 
     OLED_Clear_Gram();
 
     /* title on page 0 (8px) */
-    snprintf(title, sizeof(title), "%s (0-100)", s_curve_items[s_curve_type]);
+    snprintf(title, sizeof(title), "%s", s_curve_items[s_curve_type]);
     OLED_DrawString(0, 0, (const uint8_t *)title, 8);
+    OLED_DrawString(78, 0, (const uint8_t *)"0-100", 8);
 
     /* axes: y from 12..63 maps value 0..100 */
     OLED_Draw_Line(0, 12, 0, 63);
     OLED_Draw_Line(0, 63, 127, 63);
 
+    /* one 200ms sample per X pixel, newest sample at x=127 */
     for (i = 0; i < cnt; i++) {
         uint8_t idx = (uint8_t)((s_hist_head + CURVE_LEN - cnt + i) % CURVE_LEN);
         float v = s_hist[s_curve_type][idx];
         uint8_t x, y;
         if (v < 0.0f)   v = 0.0f;
         if (v > 100.0f) v = 100.0f;
-        x = (uint8_t)(i * 2u);
+        x = (uint8_t)(127u - (cnt - 1u - i));   /* right-aligned */
         y = (uint8_t)(63.0f - v * 51.0f / 100.0f);
         if (i > 0)
             OLED_Draw_Line(prev_x, prev_y, x, y);

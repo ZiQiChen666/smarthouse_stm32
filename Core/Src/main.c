@@ -188,6 +188,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
     {
+      static uint32_t last_adc = 0;
       static uint32_t last_report = 0;
       static uint32_t last_hb = 0;
       uint32_t now = HAL_GetTick();
@@ -199,21 +200,28 @@ int main(void)
       /* 1b. USB 调试控制台：解析 read/write/press 等命令，并处理按键自动松开 */
       Debug_Task();
 
-      /* 2. 每 3 秒采集一次 ADC（映射为 0~100）并上报 */
-      if((now - last_report) >= 3000u)
+      /* 2. 每 200ms 采集一次 ADC（映射为 0~100），并记录一个曲线点 */
+      if((now - last_adc) >= 200u)
       {
-        last_report = now;
+        last_adc = now;
 
         /* 4 路 ADC -> 温度/光照/湿度/水位（0~100）；调试可用 adc off 冻结 */
         if(g_adc_enable)
         {
           ADC_ReadSensors(&temperature, &light, &humidity, &waterlevel);
         }
+
+        /* 记录曲线历史样本（200ms 一个点） */
+        UI_PushSample(temperature, humidity, light, waterlevel);
+      }
+
+      /* 2b. 每 3 秒把当前值上报到 OneNET */
+      if((now - last_report) >= 3000u)
+      {
+        last_report = now;
+
         UsartPrintf(USART_DEBUG, "[ADC] T=%.1f L=%.1f H=%.1f W=%.1f\r\n",
                     temperature, light, humidity, waterlevel);
-
-        /* 记录曲线历史样本 */
-        UI_PushSample(temperature, humidity, light, waterlevel);
 
         OneNet_SendData();
       }
