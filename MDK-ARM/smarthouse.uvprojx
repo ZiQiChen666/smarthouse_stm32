@@ -465,6 +465,11 @@
               <FilePath>../Core/Src/i2c_scan.c</FilePath>
             </File>
             <File>
+              <FileName>gps.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Core/Src/gps.c</FilePath>
+            </File>
+            <File>
               <FileName>stm32f1xx_it.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Core/Src/stm32f1xx_it.c</FilePath>

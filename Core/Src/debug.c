@@ -34,6 +34,8 @@ extern float waterlevel;
 extern float dhtTemperature, dhtHumidity;
 extern float distance;
 extern float bhLight;
+extern float gpsLatitude, gpsLongitude, gpsAltitude, gpsSats, gpsSpeed;
+extern float gpsHour, gpsMinute, gpsSecond;
 extern float temperatureMax, temperatureMin;
 extern float humidityMax, humidityMin;
 extern float lightMax, lightMin;
@@ -64,6 +66,14 @@ static const debug_var_t g_vars[] = {
 	{ "dhtHumidity",    &dhtHumidity    },
 	{ "distance",       &distance       },
 	{ "bhLight",        &bhLight        },
+	{ "gpsLatitude",    &gpsLatitude    },
+	{ "gpsLongitude",   &gpsLongitude   },
+	{ "gpsAltitude",    &gpsAltitude    },
+	{ "gpsSats",        &gpsSats        },
+	{ "gpsSpeed",       &gpsSpeed       },
+	{ "gpsHour",        &gpsHour        },
+	{ "gpsMinute",      &gpsMinute      },
+	{ "gpsSecond",      &gpsSecond      },
 	{ "temperatureMax", &temperatureMax },
 	{ "temperatureMin", &temperatureMin },
 	{ "humidityMax",    &humidityMax    },

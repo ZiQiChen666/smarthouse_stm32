@@ -105,7 +105,7 @@ void MX_USART3_UART_Init(void)
 
   /* USER CODE END USART3_Init 1 */
   huart3.Instance = USART3;
-  huart3.Init.BaudRate = 115200;
+  huart3.Init.BaudRate = 9600;
   huart3.Init.WordLength = UART_WORDLENGTH_8B;
   huart3.Init.StopBits = UART_STOPBITS_1;
   huart3.Init.Parity = UART_PARITY_NONE;
@@ -117,7 +117,8 @@ void MX_USART3_UART_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN USART3_Init 2 */
-
+  /* 使能 USART3 接收中断，用于接收 GPS 模块的 NMEA 数据 */
+  __HAL_UART_ENABLE_IT(&huart3, UART_IT_RXNE);
   /* USER CODE END USART3_Init 2 */
 
 }
@@ -206,7 +207,9 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* USER CODE BEGIN USART3_MspInit 1 */
-
+    /* USART3 接收中断（接 GPS）优先级 1 */
+    HAL_NVIC_SetPriority(USART3_IRQn, 1, 0);
+    HAL_NVIC_EnableIRQ(USART3_IRQn);
   /* USER CODE END USART3_MspInit 1 */
   }
 }

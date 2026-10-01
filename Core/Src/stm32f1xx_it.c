@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include "usart.h"
 #include "esp8266.h"
+#include "gps.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -260,6 +261,26 @@ void USART2_IRQHandler(void)
   /* USER CODE BEGIN USART2_IRQn 1 */
 
   /* USER CODE END USART2_IRQn 1 */
+}
+
+/**
+  * @brief  USART3 全局中断：接收 GY-NEO6MV2 GPS 模块的 NMEA 数据
+  */
+void USART3_IRQHandler(void)
+{
+  /* USER CODE BEGIN USART3_IRQn 0 */
+  /* 与 USART2 同样做法：只做寄存器级接收，不调 HAL_UART_IRQHandler()，
+     避免 ORE 触发 HAL 的 UART_EndRxTransfer() 把 RXNE 中断关掉。 */
+  if(__HAL_UART_GET_FLAG(&huart3, UART_FLAG_RXNE) != RESET ||
+     __HAL_UART_GET_FLAG(&huart3, UART_FLAG_ORE)  != RESET)
+  {
+    uint8_t rx = (uint8_t)(huart3.Instance->DR & 0xFF);
+    GPS_FeedByte(rx);
+  }
+  /* USER CODE END USART3_IRQn 0 */
+  /* USER CODE BEGIN USART3_IRQn 1 */
+
+  /* USER CODE END USART3_IRQn 1 */
 }
 
 /* USER CODE END 1 */

@@ -58,6 +58,16 @@ extern float dhtHumidity;
 extern float distance;
 /* 上报：BH1750 实测光照 */
 extern float bhLight;
+/* 上报：GPS 定位 */
+extern float gpsLatitude;
+extern float gpsLongitude;
+extern float gpsAltitude;
+extern float gpsSats;
+extern float gpsSpeed;
+/* 上报：GPS 时间（UTC） */
+extern float gpsHour;
+extern float gpsMinute;
+extern float gpsSecond;
 /* 接收：阈值 */
 extern float temperatureMax;
 extern float temperatureMin;
@@ -437,9 +447,13 @@ static unsigned char OneNet_GetParamValue(cJSON *params, const char *key, float 
 }
 
 /* 组装上行 JSON：只上报 4 个传感器属性 */
+/**
+  * @brief  组装上报 JSON（物模型属性）
+  * @note   字段较多，缓冲区需要足够大；当前最坏情况约 419 字节。
+  */
 unsigned char OneNet_FillBuf(char *buf)
 {
-	snprintf(buf, 384,
+	snprintf(buf, 640,
 		 "{\"id\":\"123\",\"params\":{"
 		 "\"temperature\":{\"value\":%.2f},"
 		 "\"humidity\":{\"value\":%.2f},"
@@ -448,9 +462,19 @@ unsigned char OneNet_FillBuf(char *buf)
 		 "\"dhtTemperature\":{\"value\":%.2f},"
 		 "\"dhtHumidity\":{\"value\":%.2f},"
 		 "\"distance\":{\"value\":%.2f},"
-		 "\"bhLight\":{\"value\":%.2f}"
+		 "\"bhLight\":{\"value\":%.2f},"
+		 "\"gpsLatitude\":{\"value\":%.6f},"
+		 "\"gpsLongitude\":{\"value\":%.6f},"
+		 "\"gpsAltitude\":{\"value\":%.1f},"
+		 "\"gpsSats\":{\"value\":%.0f},"
+		 "\"gpsSpeed\":{\"value\":%.2f},"
+		 "\"gpsHour\":{\"value\":%.0f},"
+		 "\"gpsMinute\":{\"value\":%.0f},"
+		 "\"gpsSecond\":{\"value\":%.0f}"
 		 "}}",
-		 temperature, humidity, light, waterlevel, dhtTemperature, dhtHumidity, distance, bhLight);
+		 temperature, humidity, light, waterlevel, dhtTemperature, dhtHumidity, distance, bhLight,
+		 gpsLatitude, gpsLongitude, gpsAltitude, gpsSats, gpsSpeed,
+		 gpsHour, gpsMinute, gpsSecond);
 
 	return (unsigned char)strlen(buf);
 
@@ -472,7 +496,7 @@ void OneNet_SendData(void)
 	
 	MQTT_PACKET_STRUCTURE mqttPacket = {NULL, 0, 0, 0};												//?????
 	
-	char buf[384];
+	char buf[640];
 	
 	short body_len = 0, i = 0;
 	

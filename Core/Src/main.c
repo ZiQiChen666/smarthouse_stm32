@@ -36,6 +36,7 @@
 #include "dht11.h"
 #include "hcsr04.h"
 #include "bh1750.h"
+#include "gps.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -76,6 +77,18 @@ float distance = 0.0f;         /* 距离 cm */
 
 /* ---- BH1750 实测光照（I2C1 与 OLED 共用，单独上报） ---- */
 float bhLight = 0.0f;          /* 光照 lx */
+
+/* ---- GY-NEO6MV2 GPS（USART3_RX = PB11，单独上报） ---- */
+float gpsLatitude  = 0.0f;     /* 纬度（十进制度，南纬为负） */
+float gpsLongitude = 0.0f;     /* 经度（十进制度，西经为负） */
+float gpsAltitude  = 0.0f;     /* 海拔 m */
+float gpsSats      = 0.0f;     /* 卫星数 */
+float gpsSpeed     = 0.0f;     /* 地面速度 km/h */
+
+/* GPS UTC 时间（数值型，方便上报/调试） */
+float gpsHour      = 0.0f;     /* 时 0~23 (UTC) */
+float gpsMinute    = 0.0f;     /* 分 0~59 (UTC) */
+float gpsSecond    = 0.0f;     /* 秒 0~59 (UTC) */
 
 /* ---- 阈值（仅接收，不上报） ---- */
 float temperatureMax = 50.0f;
@@ -182,6 +195,9 @@ int main(void)
   else
     UsartPrintf(USART_DEBUG, "[BH1750] init fail, not found on I2C1 (try 'i2cscan')\r\n");
 
+  /* GY-NEO6MV2 GPS（USART3_RX = PB11，中断接收） */
+  GPS_Init();
+
   /* 按键（PB12~PB15）+ TIM2 10ms 扫描中断 */
   Button_Init();
 
@@ -217,6 +233,7 @@ int main(void)
       static uint32_t last_dht = 0;
       static uint32_t last_ultr = 0;
       static uint32_t last_bh = 0;
+      static uint32_t last_gps = 0;
       static uint32_t last_report = 0;
       static uint32_t last_hb = 0;
       uint32_t now = HAL_GetTick();
@@ -321,7 +338,53 @@ int main(void)
       bh_done:;
       }
 
-      /* 2e. 每 3 秒把当前值上报到 OneNET */
+      /* 2e. 每 1 秒读一次 GPS 定位数据（NMEA 在中断里解析） */
+      if((now - last_gps) >= 1000u)
+      {
+        last_gps = now;
+
+        gps_data_t g;
+        GPS_GetData(&g);
+        if(g.valid)
+        {
+          gpsLatitude  = (float)g.latitude  / GPS_COORD_SCALE;
+          gpsLongitude = (float)g.longitude / GPS_COORD_SCALE;
+          gpsAltitude  = (float)g.altitude_dm / GPS_ALT_SCALE;
+          gpsSats      = (float)g.sats;
+          /* 速度：1 节 = 1.852 km/h；speed_cs 是 0.01 节 */
+          gpsSpeed     = (float)g.speed_cs * 0.01f * 1.852f;
+
+          gpsHour      = (float)g.hour;
+          gpsMinute    = (float)g.minute;
+          gpsSecond    = (float)g.second;
+
+          /* UTC 时间 + 8h = 北京时间（跨日则 +1 天，仅用于显示） */
+          {
+            unsigned bh = g.hour + 8u;
+            unsigned bday = g.day;
+            if (bh >= 24u) { bh -= 24u; bday += 1u; }
+
+            UsartPrintf(USART_DEBUG,
+                        "[GPS] %.6f, %.6f alt=%.1fm sats=%u spd=%.1fkm/h\r\n",
+                        gpsLatitude, gpsLongitude, gpsAltitude,
+                        (unsigned)g.sats, gpsSpeed);
+            UsartPrintf(USART_DEBUG,
+                        "[GPS] 20%02u-%02u-%02u %02u:%02u:%02u UTC\r\n",
+                        (unsigned)g.year, (unsigned)g.month, (unsigned)g.day,
+                        (unsigned)g.hour, (unsigned)g.minute, (unsigned)g.second);
+            UsartPrintf(USART_DEBUG,
+                        "[GPS] CST %02u:%02u:%02u (UTC+8, date %02u-%02u)\r\n",
+                        bh, (unsigned)g.minute, (unsigned)g.second,
+                        (unsigned)g.month, bday);
+          }
+        }
+        else if(g.updated)
+        {
+          UsartPrintf(USART_DEBUG, "[GPS] no fix (sats=%u)\r\n", (unsigned)g.sats);
+        }
+      }
+
+      /* 2f. 每 3 秒把当前值上报到 OneNET */
       if((now - last_report) >= 3000u)
       {
         last_report = now;
