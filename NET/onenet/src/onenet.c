@@ -51,6 +51,9 @@ extern float temperature;
 extern float humidity;
 extern float light;
 extern float waterlevel;
+/* 上报：DHT11 实测温湿度 */
+extern float dhtTemperature;
+extern float dhtHumidity;
 /* 接收：阈值 */
 extern float temperatureMax;
 extern float temperatureMin;
@@ -437,9 +440,11 @@ unsigned char OneNet_FillBuf(char *buf)
 		 "\"temperature\":{\"value\":%.2f},"
 		 "\"humidity\":{\"value\":%.2f},"
 		 "\"light\":{\"value\":%.2f},"
-		 "\"waterlevel\":{\"value\":%.2f}"
+		 "\"waterlevel\":{\"value\":%.2f},"
+		 "\"dhtTemperature\":{\"value\":%.2f},"
+		 "\"dhtHumidity\":{\"value\":%.2f}"
 		 "}}",
-		 temperature, humidity, light, waterlevel);
+		 temperature, humidity, light, waterlevel, dhtTemperature, dhtHumidity);
 
 	return (unsigned char)strlen(buf);
 

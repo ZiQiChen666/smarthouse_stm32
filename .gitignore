@@ -25,3 +25,7 @@ MDK-ARM/*.uvguix.*
 
 # ---- misc ----
 *.zip
+
+# ---- Keil build logs I generate during builds ----
+build_*.txt
+MDK-ARM/build_*.txt

@@ -33,6 +33,7 @@
 #include "debug.h"
 #include "button.h"
 #include "ui.h"
+#include "dht11.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -63,6 +64,10 @@ float temperature = 0.0f;   /* 温度  ℃   */
 float humidity    = 0.0f;   /* 湿度  %RH */
 float light       = 0.0f;   /* 光照  lux */
 float waterlevel  = 0.0f;   /* 水位       */
+
+/* ---- DHT11 实测温湿度（PB1 单总线，单独上报） ---- */
+float dhtTemperature = 0.0f;   /* DHT11 温度 ℃  */
+float dhtHumidity    = 0.0f;   /* DHT11 湿度 %RH */
 
 /* ---- 阈值（仅接收，不上报） ---- */
 float temperatureMax = 50.0f;
@@ -157,6 +162,9 @@ int main(void)
   /* 调试控制台（USB CDC） */
   Debug_Init();
 
+  /* DHT11 温湿度传感器（PB1 单总线） */
+  DHT11_Init();
+
   /* 按键（PB12~PB15）+ TIM2 10ms 扫描中断 */
   Button_Init();
 
@@ -189,6 +197,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
     {
       static uint32_t last_adc = 0;
+      static uint32_t last_dht = 0;
       static uint32_t last_report = 0;
       static uint32_t last_hb = 0;
       uint32_t now = HAL_GetTick();
@@ -215,7 +224,25 @@ int main(void)
         UI_PushSample(temperature, humidity, light, waterlevel);
       }
 
-      /* 2b. 每 3 秒把当前值上报到 OneNET */
+      /* 2b. 每 2 秒读一次 DHT11 温湿度（DHT11 采样周期需 >= 1s） */
+      if((now - last_dht) >= 2000u)
+      {
+        last_dht = now;
+
+        float t = 0.0f, h = 0.0f;
+        if(DHT11_Read(&t, &h) == 0)
+        {
+          dhtTemperature = t;
+          dhtHumidity    = h;
+          UsartPrintf(USART_DEBUG, "[DHT11] T=%.1f H=%.1f\r\n", t, h);
+        }
+        else
+        {
+          UsartPrintf(USART_DEBUG, "[DHT11] read fail\r\n");
+        }
+      }
+
+      /* 2c. 每 3 秒把当前值上报到 OneNET */
       if((now - last_report) >= 3000u)
       {
         last_report = now;
