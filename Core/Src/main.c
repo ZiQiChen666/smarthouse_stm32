@@ -34,6 +34,7 @@
 #include "button.h"
 #include "ui.h"
 #include "dht11.h"
+#include "hcsr04.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -68,6 +69,9 @@ float waterlevel  = 0.0f;   /* 水位       */
 /* ---- DHT11 实测温湿度（PB1 单总线，单独上报） ---- */
 float dhtTemperature = 0.0f;   /* DHT11 温度 ℃  */
 float dhtHumidity    = 0.0f;   /* DHT11 湿度 %RH */
+
+/* ---- HC-SR04 超声波测距（TRIG=PB8, ECHO=PB9，单独上报） ---- */
+float distance = 0.0f;         /* 距离 cm */
 
 /* ---- 阈值（仅接收，不上报） ---- */
 float temperatureMax = 50.0f;
@@ -165,6 +169,9 @@ int main(void)
   /* DHT11 温湿度传感器（PB1 单总线） */
   DHT11_Init();
 
+  /* HC-SR04 超声波测距（TRIG=PB8, ECHO=PB9） */
+  HCSR04_Init();
+
   /* 按键（PB12~PB15）+ TIM2 10ms 扫描中断 */
   Button_Init();
 
@@ -198,6 +205,7 @@ int main(void)
     {
       static uint32_t last_adc = 0;
       static uint32_t last_dht = 0;
+      static uint32_t last_ultr = 0;
       static uint32_t last_report = 0;
       static uint32_t last_hb = 0;
       uint32_t now = HAL_GetTick();
@@ -252,7 +260,26 @@ int main(void)
         }
       }
 
-      /* 2c. 每 3 秒把当前值上报到 OneNET */
+      /* 2c. 每 200ms 测一次超声波距离（HC-SR04 间隔需 >= 60ms） */
+      if((now - last_ultr) >= 200u)
+      {
+        last_ultr = now;
+
+        float d = 0.0f;
+        uint8_t rc = HCSR04_Read(&d);
+        if(rc == 0)
+        {
+          distance = d;
+          UsartPrintf(USART_DEBUG, "[SR04] distance=%.1f cm\r\n", d);
+        }
+        else
+        {
+          /* rc: 1=ECHO无响应 2=ECHO超时 */
+          UsartPrintf(USART_DEBUG, "[SR04] read fail, rc=%u\r\n", rc);
+        }
+      }
+
+      /* 2d. 每 3 秒把当前值上报到 OneNET */
       if((now - last_report) >= 3000u)
       {
         last_report = now;

@@ -63,3 +63,22 @@ PB15是返回按键
 如果是PB12长按且在控制界面，那么就是对应打开
 如果是PB13长按且在控制界面，那么就是对应关闭
 通过确认和返回进行界面之间的切换。
+
+之前的对应IO口是
+
+USB PA11 PA12  
+
+ SWD PA13 PA14
+
+OLED PB6 PB7
+
+KEY1~KEY4 PB12~PB15
+
+ESP8266  PA2 PA3
+
+ADC PA0 PA1 PA4 PB0
+
+增加DHT11   --- PB1
+
+增加超声波   T---PB8   E----PB9
+

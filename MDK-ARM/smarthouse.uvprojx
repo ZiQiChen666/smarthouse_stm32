@@ -450,6 +450,11 @@
               <FilePath>../Core/Src/dht11.c</FilePath>
             </File>
             <File>
+              <FileName>hcsr04.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Core/Src/hcsr04.c</FilePath>
+            </File>
+            <File>
               <FileName>stm32f1xx_it.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Core/Src/stm32f1xx_it.c</FilePath>

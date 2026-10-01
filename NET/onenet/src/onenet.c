@@ -54,6 +54,8 @@ extern float waterlevel;
 /* 上报：DHT11 实测温湿度 */
 extern float dhtTemperature;
 extern float dhtHumidity;
+/* 上报：HC-SR04 超声波距离 */
+extern float distance;
 /* 接收：阈值 */
 extern float temperatureMax;
 extern float temperatureMin;
@@ -442,9 +444,10 @@ unsigned char OneNet_FillBuf(char *buf)
 		 "\"light\":{\"value\":%.2f},"
 		 "\"waterlevel\":{\"value\":%.2f},"
 		 "\"dhtTemperature\":{\"value\":%.2f},"
-		 "\"dhtHumidity\":{\"value\":%.2f}"
+		 "\"dhtHumidity\":{\"value\":%.2f},"
+		 "\"distance\":{\"value\":%.2f}"
 		 "}}",
-		 temperature, humidity, light, waterlevel, dhtTemperature, dhtHumidity);
+		 temperature, humidity, light, waterlevel, dhtTemperature, dhtHumidity, distance);
 
 	return (unsigned char)strlen(buf);
 

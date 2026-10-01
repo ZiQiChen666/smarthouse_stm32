@@ -35,6 +35,24 @@
 /* ------------------------------------------------------------------ */
 /* DWT 微秒计时                                                        */
 /* ------------------------------------------------------------------ */
+/*
+ * 不用 SystemCoreClock！本工程 SystemClock_Config() 配成 72MHz，
+ * 但 CMSIS 的 SystemCoreClock 变量停在初值 8000000（CubeMX 生成的
+ * main.c 没调 SystemCoreClockUpdate()），拿它换算会偏差 9 倍。
+ * 这里直接读 RCC 寄存器得到真实 HCLK。
+ */
+static uint32_t s_cpu_mhz = 72u;   /* 1us 对应的周期数，Init 里实测更新 */
+
+/* 最近一次读到的原始 5 字节（调试用） */
+static uint8_t s_last_raw[5] = {0, 0, 0, 0, 0};
+
+static void dht11_calc_cpu_freq(void)
+{
+    uint32_t hclk = HAL_RCC_GetHCLKFreq();
+    s_cpu_mhz = hclk / 1000000u;
+    if (s_cpu_mhz == 0u) s_cpu_mhz = 72u;
+}
+
 static void dht11_dwt_enable(void)
 {
     /* 使能 DWT 的 CYCCNT 计数器（Cortex-M3 支持） */
@@ -48,23 +66,11 @@ static inline uint32_t dht11_cycles(void)
     return DWT->CYCCNT;
 }
 
-/* 把时钟周期换算成微秒。
- *
- * 注意：不要用 SystemCoreClock！本工程在 SystemClock_Config() 里把主频
- * 配成了 72MHz，但 CMSIS 的 SystemCoreClock 变量停留在初值 8000000
- * （CubeMX 生成的 main.c 没调 SystemCoreClockUpdate()），拿它做换算
- * 会偏差 9 倍。这里直接读 RCC 寄存器，拿到真实的 HCLK。
- */
-static uint32_t s_cpu_mhz = 72u;   /* 周期/us，DHT11_Init 里实测更新 */
-
-/* 最近一次读到的原始 5 字节（调试用） */
-static uint8_t s_last_raw[5] = {0, 0, 0, 0, 0};
-
-static void dht11_calc_cpu_freq(void)
+/* 微秒 -> 周期数。全程用周期比较，避免整数除法误差，
+ * 且无符号差值天然支持 CYCCNT 回绕（间隔远小于 2^32 周期）。 */
+static inline uint32_t dht11_us_to_cycles(uint32_t us)
 {
-    uint32_t hclk = HAL_RCC_GetHCLKFreq();
-    s_cpu_mhz = hclk / 1000000u;
-    if (s_cpu_mhz == 0u) s_cpu_mhz = 72u;
+    return us * s_cpu_mhz;
 }
 
 static inline uint32_t dht11_cycles_to_us(uint32_t cyc)
@@ -104,18 +110,18 @@ static uint8_t dht11_read_bit(uint8_t *bit)
 {
     uint32_t t0;
 
-    /* 等 50us 低电平结束 */
+    /* 等 50us 低电平结束（周期域比较，天然支持 CYCCNT 回绕） */
     t0 = dht11_cycles();
     while (DHT11_READ() == 0) {
-        if (dht11_cycles_to_us(dht11_cycles() - t0) > DHT11_TIMEOUT_US) return 1;
+        if ((uint32_t)(dht11_cycles() - t0) > dht11_us_to_cycles(DHT11_TIMEOUT_US)) return 1;
     }
 
     /* 量高电平持续多久 */
     t0 = dht11_cycles();
     while (DHT11_READ() == 1) {
-        if (dht11_cycles_to_us(dht11_cycles() - t0) > DHT11_TIMEOUT_US) return 2;
+        if ((uint32_t)(dht11_cycles() - t0) > dht11_us_to_cycles(DHT11_TIMEOUT_US)) return 2;
     }
-    *bit = (dht11_cycles_to_us(dht11_cycles() - t0) > 50u) ? 1u : 0u;
+    *bit = (dht11_cycles_to_us((uint32_t)(dht11_cycles() - t0)) > 50u) ? 1u : 0u;
     return 0;
 }
 
@@ -168,19 +174,19 @@ uint8_t DHT11_Read(float *temperature, float *humidity)
     /* DHT11 应在 20~40us 内拉低总线（80us 低电平响应） */
     t0 = dht11_cycles();
     while (DHT11_READ() == 1) {
-        if (dht11_cycles_to_us(dht11_cycles() - t0) > DHT11_TIMEOUT_US) return 1;
+        if ((uint32_t)(dht11_cycles() - t0) > dht11_us_to_cycles(DHT11_TIMEOUT_US)) return 1;
     }
 
     /* 等 80us 低电平结束 */
     t0 = dht11_cycles();
     while (DHT11_READ() == 0) {
-        if (dht11_cycles_to_us(dht11_cycles() - t0) > DHT11_TIMEOUT_US) return 2;
+        if ((uint32_t)(dht11_cycles() - t0) > dht11_us_to_cycles(DHT11_TIMEOUT_US)) return 2;
     }
 
     /* 等 80us 高电平结束 —— 退出时已进入第 1 个 bit 的 50us 低电平 */
     t0 = dht11_cycles();
     while (DHT11_READ() == 1) {
-        if (dht11_cycles_to_us(dht11_cycles() - t0) > DHT11_TIMEOUT_US) return 3;
+        if ((uint32_t)(dht11_cycles() - t0) > dht11_us_to_cycles(DHT11_TIMEOUT_US)) return 3;
     }
 
     /* ---- 3. 读 40bit ---- */
