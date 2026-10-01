@@ -36,6 +36,7 @@ extern float distance;
 extern float bhLight;
 extern float gpsLatitude, gpsLongitude, gpsAltitude, gpsSats, gpsSpeed;
 extern float gpsHour, gpsMinute, gpsSecond;
+extern float mpuRoll, mpuPitch, mpuYaw;
 extern float temperatureMax, temperatureMin;
 extern float humidityMax, humidityMin;
 extern float lightMax, lightMin;
@@ -74,6 +75,9 @@ static const debug_var_t g_vars[] = {
 	{ "gpsHour",        &gpsHour        },
 	{ "gpsMinute",      &gpsMinute      },
 	{ "gpsSecond",      &gpsSecond      },
+	{ "roll",           &mpuRoll        },
+	{ "pitch",          &mpuPitch       },
+	{ "yaw",            &mpuYaw         },
 	{ "temperatureMax", &temperatureMax },
 	{ "temperatureMin", &temperatureMin },
 	{ "humidityMax",    &humidityMax    },

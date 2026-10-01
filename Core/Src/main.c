@@ -37,6 +37,7 @@
 #include "hcsr04.h"
 #include "bh1750.h"
 #include "gps.h"
+#include "mpu6050.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -89,6 +90,11 @@ float gpsSpeed     = 0.0f;     /* 地面速度 km/h */
 float gpsHour      = 0.0f;     /* 时 0~23 (UTC) */
 float gpsMinute    = 0.0f;     /* 分 0~59 (UTC) */
 float gpsSecond    = 0.0f;     /* 秒 0~59 (UTC) */
+
+/* ---- MPU6050/6500 姿态角（I2C1 与 OLED/BH1750 共用，单独上报） ---- */
+float mpuRoll  = 0.0f;         /* 绕 X 轴 度 */
+float mpuPitch = 0.0f;         /* 绕 Y 轴 度 */
+float mpuYaw   = 0.0f;         /* 绕 Z 轴 度（会漂移） */
 
 /* ---- 阈值（仅接收，不上报） ---- */
 float temperatureMax = 50.0f;
@@ -198,6 +204,22 @@ int main(void)
   /* GY-NEO6MV2 GPS（USART3_RX = PB11，中断接收） */
   GPS_Init();
 
+  /* MPU6050/6500 姿态传感器（I2C1，PB6/PB7）
+     MPU_Init() 内部已含上电、配置寄存器、读 WHO_AM_I；
+     初始化成功后立即做一次陀螺零偏校准（静置约 0.5 秒） */
+  if(MPU_Init() == 0)
+  {
+    UsartPrintf(USART_DEBUG, "[MPU] init ok, WHO_AM_I=0x%02X (0x68=6050, 0x70/71=6500/9250)\r\n",
+                (unsigned)MPU_WhoAmI());
+    UsartPrintf(USART_DEBUG, "[MPU] calibrating gyro, keep still...\r\n");
+    MPU_CalibrateGyro();
+    UsartPrintf(USART_DEBUG, "[MPU] gyro calibrated\r\n");
+  }
+  else
+  {
+    UsartPrintf(USART_DEBUG, "[MPU] init fail, not found on I2C1 (will retry in loop)\r\n");
+  }
+
   /* 按键（PB12~PB15）+ TIM2 10ms 扫描中断 */
   Button_Init();
 
@@ -234,6 +256,7 @@ int main(void)
       static uint32_t last_ultr = 0;
       static uint32_t last_bh = 0;
       static uint32_t last_gps = 0;
+      static uint32_t last_mpu = 0;
       static uint32_t last_report = 0;
       static uint32_t last_hb = 0;
       uint32_t now = HAL_GetTick();
@@ -384,7 +407,46 @@ int main(void)
         }
       }
 
-      /* 2f. 每 3 秒把当前值上报到 OneNET */
+      /* 2f. 每 100ms 读一次 MPU6050/6500 并做姿态解算，持续上报 */
+      if((now - last_mpu) >= 100u)
+      {
+        uint16_t dt = (uint16_t)(now - last_mpu);
+        last_mpu = now;
+
+        /* 掉线时自动重试：重连成功后重新校准一次 */
+        if(!MPU_IsReady())
+        {
+          if(MPU_ReInit() != 0)
+            goto mpu_done;
+          UsartPrintf(USART_DEBUG, "[MPU] re-init ok, WHO_AM_I=0x%02X\r\n",
+                      (unsigned)MPU_WhoAmI());
+          MPU_CalibrateGyro();
+        }
+
+        if(MPU_Update(dt) == 0)
+        {
+          mpu_data_t m;
+          MPU_GetData(&m);
+          mpuRoll  = m.roll;
+          mpuPitch = m.pitch;
+          mpuYaw   = m.yaw;
+
+          /* 每 1 秒打印一次姿态角（方便看趋势） */
+          {
+            static uint32_t last_mpu_log = 0;
+            if((now - last_mpu_log) >= 1000u)
+            {
+              last_mpu_log = now;
+              UsartPrintf(USART_DEBUG, "[MPU] roll=%.1f pitch=%.1f yaw=%.1f (T=%.1fC)\r\n",
+                          mpuRoll, mpuPitch, mpuYaw, m.temperature);
+            }
+          }
+        }
+
+      mpu_done:;
+      }
+
+      /* 2g. 每 3 秒把当前值上报到 OneNET */
       if((now - last_report) >= 3000u)
       {
         last_report = now;

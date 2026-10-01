@@ -68,6 +68,10 @@ extern float gpsSpeed;
 extern float gpsHour;
 extern float gpsMinute;
 extern float gpsSecond;
+/* 上报：MPU6050/6500 姿态角 */
+extern float mpuRoll;
+extern float mpuPitch;
+extern float mpuYaw;
 /* 接收：阈值 */
 extern float temperatureMax;
 extern float temperatureMin;
@@ -449,11 +453,11 @@ static unsigned char OneNet_GetParamValue(cJSON *params, const char *key, float 
 /* 组装上行 JSON：只上报 4 个传感器属性 */
 /**
   * @brief  组装上报 JSON（物模型属性）
-  * @note   字段较多，缓冲区需要足够大；当前最坏情况约 419 字节。
+  * @note   字段较多，缓冲区需要足够大；当前最坏情况约 576 字节。
   */
 unsigned char OneNet_FillBuf(char *buf)
 {
-	snprintf(buf, 640,
+	snprintf(buf, 768,
 		 "{\"id\":\"123\",\"params\":{"
 		 "\"temperature\":{\"value\":%.2f},"
 		 "\"humidity\":{\"value\":%.2f},"
@@ -470,11 +474,15 @@ unsigned char OneNet_FillBuf(char *buf)
 		 "\"gpsSpeed\":{\"value\":%.2f},"
 		 "\"gpsHour\":{\"value\":%.0f},"
 		 "\"gpsMinute\":{\"value\":%.0f},"
-		 "\"gpsSecond\":{\"value\":%.0f}"
+		 "\"gpsSecond\":{\"value\":%.0f},"
+		 "\"roll\":{\"value\":%.2f},"
+		 "\"pitch\":{\"value\":%.2f},"
+		 "\"yaw\":{\"value\":%.2f}"
 		 "}}",
 		 temperature, humidity, light, waterlevel, dhtTemperature, dhtHumidity, distance, bhLight,
 		 gpsLatitude, gpsLongitude, gpsAltitude, gpsSats, gpsSpeed,
-		 gpsHour, gpsMinute, gpsSecond);
+		 gpsHour, gpsMinute, gpsSecond,
+		 mpuRoll, mpuPitch, mpuYaw);
 
 	return (unsigned char)strlen(buf);
 
@@ -496,7 +504,7 @@ void OneNet_SendData(void)
 	
 	MQTT_PACKET_STRUCTURE mqttPacket = {NULL, 0, 0, 0};												//?????
 	
-	char buf[640];
+	char buf[768];
 	
 	short body_len = 0, i = 0;
 	
