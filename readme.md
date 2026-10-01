@@ -84,6 +84,8 @@ ADC PA0 PA1 PA4 PB0
 
 增加光照传感器   PB6 PB7
 
+增加gps解析 ---  USART3
+
 增加MPU6050角度解析
 
 

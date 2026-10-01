@@ -1,6 +1,7 @@
 #include "ui.h"
 #include "oled.h"
 #include "button.h"
+#include "param.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -32,6 +33,7 @@ static ui_screen_t s_screen = SCREEN_MAIN;
 static uint8_t     s_index = 0;
 static uint8_t     s_curve_type = 0;
 static uint8_t     s_need_redraw = 1;
+static uint8_t     s_thresh_dirty = 0;   /* 阈值被改过，待写入本地 Flash */
 
 /* curve history: [channel][sample], ring buffer */
 /* 曲线历史：同时只画一条曲线，所以只需要一维缓冲。
@@ -226,6 +228,12 @@ static uint8_t ui_on_back(void)
     if (s_screen == SCREEN_CURVE_VIEW)
         s_screen = SCREEN_CURVE_MENU;
     else {
+        /* 离开阈值界面时，如果改过就写本地 Flash（掉电不丢）。
+           不上报云端：阈值只以本地为准。 */
+        if (s_screen == SCREEN_THRESHOLD && s_thresh_dirty) {
+            if (Param_SaveFromVars() == 0)
+                s_thresh_dirty = 0;
+        }
         s_screen = SCREEN_MAIN;
         s_index = 0;
     }
@@ -245,6 +253,7 @@ static uint8_t ui_on_inc(button_event_t ev)
             float *v = threshold_var(s_index);
             *v += 1.0f;
             if (*v > 100.0f) *v = 100.0f;
+            s_thresh_dirty = 1;     /* 标记改动，离开界面时写 Flash */
             return 1;
         }
         break;
@@ -274,6 +283,7 @@ static uint8_t ui_on_dec(button_event_t ev)
             float *v = threshold_var(s_index);
             *v -= 1.0f;
             if (*v < 0.0f) *v = 0.0f;
+            s_thresh_dirty = 1;     /* 标记改动，离开界面时写 Flash */
             return 1;
         }
         break;

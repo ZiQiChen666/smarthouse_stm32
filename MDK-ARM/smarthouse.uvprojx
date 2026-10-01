@@ -475,6 +475,16 @@
               <FilePath>../Core/Src/mpu6050.c</FilePath>
             </File>
             <File>
+              <FileName>param.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Core/Src/param.c</FilePath>
+            </File>
+            <File>
+              <FileName>param_dump.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Core/Src/param_dump.c</FilePath>
+            </File>
+            <File>
               <FileName>stm32f1xx_it.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Core/Src/stm32f1xx_it.c</FilePath>

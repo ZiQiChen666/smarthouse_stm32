@@ -38,6 +38,7 @@
 #include "bh1750.h"
 #include "gps.h"
 #include "mpu6050.h"
+#include "param.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -125,7 +126,11 @@ extern PCD_HandleTypeDef hpcd_USB_FS;
   */
 void SmartHouse_ApplyControl(void)
 {
-  /* TODO: 根据 fanS / lightS / pumpS 以及 *_Max / *_Min 控制执行器 */
+  /* 云端下发了阈值/开关：阈值以云端为准，直接持久化到本地 Flash。 */
+  if (Param_SaveFromVars() == 0)
+    UsartPrintf(USART_DEBUG, "[PARAM] thresholds saved to flash\r\n");
+  else
+    UsartPrintf(USART_DEBUG, "[PARAM] flash save failed\r\n");
 }
 /* USER CODE END PV */
 
@@ -188,6 +193,14 @@ int main(void)
   /* USER CODE BEGIN 2 */
   /* 调试控制台（USB CDC） */
   Debug_Init();
+
+  /* 从 Flash 恢复阈值上下限（上次掉电前保存的） */
+  Param_LoadToVars();
+  UsartPrintf(USART_DEBUG, "[PARAM] loaded: T[%.1f,%.1f] H[%.1f,%.1f] L[%.1f,%.1f] W[%.1f,%.1f]\r\n",
+              temperatureMin, temperatureMax,
+              humidityMin, humidityMax,
+              lightMin, lightMax,
+              waterlevelMin, waterlevelMax);
 
   /* DHT11 温湿度传感器（PB1 单总线） */
   DHT11_Init();

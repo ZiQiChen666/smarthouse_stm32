@@ -22,6 +22,7 @@
 #include "usart.h"
 #include "button.h"
 #include "i2c_scan.h"
+#include "param.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -147,7 +148,7 @@ static void cmd_help(void)
 	UsartPrintf(USART_DEBUG, "[DBG] read <name> | write <name> <value> | vars | help\r\n");
 	UsartPrintf(USART_DEBUG, "[DBG] <PB12..PB15> Press <ms> | release <PBxx> | adc on|off\r\n");
 	UsartPrintf(USART_DEBUG, "[DBG] PB12=+ PB13=- PB14=OK PB15=Back (short<700ms, long>=700ms)\r\n");
-	UsartPrintf(USART_DEBUG, "[DBG] i2cscan\r\n");
+	UsartPrintf(USART_DEBUG, "[DBG] i2cscan | save | load | flashdump | selftest\r\n");
 }
 
 static void cmd_vars(void)
@@ -334,6 +335,32 @@ void Debug_Task(void)
 	else if (streq_ci(tok[0], "i2cscan"))
 	{
 		I2C_ScanBus();
+	}
+	else if (streq_ci(tok[0], "save"))
+	{
+		/* 把当前阈值写进 Flash */
+		if (Param_SaveFromVars() == 0)
+			UsartPrintf(USART_DEBUG, "[DBG] param saved to flash\r\n");
+		else
+			UsartPrintf(USART_DEBUG, "[DBG] param save FAILED\r\n");
+	}
+	else if (streq_ci(tok[0], "load"))
+	{
+		/* 从 Flash 读回阈值 */
+		Param_LoadToVars();
+		UsartPrintf(USART_DEBUG, "[DBG] param loaded from flash\r\n");
+	}
+	else if (streq_ci(tok[0], "flashdump"))
+	{
+		Param_Dump();
+	}
+	else if (streq_ci(tok[0], "selftest"))
+	{
+		uint8_t rc = Param_SelfTest();
+		if (rc == 0)
+			UsartPrintf(USART_DEBUG, "[DBG] param selftest PASS\r\n");
+		else
+			UsartPrintf(USART_DEBUG, "[DBG] param selftest FAIL, rc=0x%02X\r\n", rc);
 	}
 	else if (n >= 3 && streq_ci(tok[1], "press"))       /* PB12 Press 2000 */
 	{
