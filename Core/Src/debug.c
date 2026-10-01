@@ -23,6 +23,7 @@
 #include "button.h"
 #include "i2c_scan.h"
 #include "param.h"
+#include "rc522.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -148,7 +149,7 @@ static void cmd_help(void)
 	UsartPrintf(USART_DEBUG, "[DBG] read <name> | write <name> <value> | vars | help\r\n");
 	UsartPrintf(USART_DEBUG, "[DBG] <PB12..PB15> Press <ms> | release <PBxx> | adc on|off\r\n");
 	UsartPrintf(USART_DEBUG, "[DBG] PB12=+ PB13=- PB14=OK PB15=Back (short<700ms, long>=700ms)\r\n");
-	UsartPrintf(USART_DEBUG, "[DBG] i2cscan | save | load | flashdump | selftest\r\n");
+	UsartPrintf(USART_DEBUG, "[DBG] i2cscan | save | load | flashdump | selftest | rfid\r\n");
 }
 
 static void cmd_vars(void)
@@ -361,6 +362,22 @@ void Debug_Task(void)
 			UsartPrintf(USART_DEBUG, "[DBG] param selftest PASS\r\n");
 		else
 			UsartPrintf(USART_DEBUG, "[DBG] param selftest FAIL, rc=0x%02X\r\n", rc);
+	}
+	else if (streq_ci(tok[0], "rfid"))
+	{
+		/* 现场寻一次卡 */
+		rc522_card_t c;
+		uint8_t rc = RC522_ReadCard(&c);
+		if (rc == 0)
+		{
+			UsartPrintf(USART_DEBUG, "[DBG] RFID UID=%02X%02X%02X%02X SAK=0x%02X\r\n",
+						c.uid[0], c.uid[1], c.uid[2], c.uid[3], c.sak);
+			RC522_Halt();
+		}
+		else
+		{
+			UsartPrintf(USART_DEBUG, "[DBG] RFID no card, rc=%u\r\n", rc);
+		}
 	}
 	else if (n >= 3 && streq_ci(tok[1], "press"))       /* PB12 Press 2000 */
 	{

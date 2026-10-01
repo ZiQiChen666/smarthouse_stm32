@@ -72,6 +72,9 @@ extern float gpsSecond;
 extern float mpuRoll;
 extern float mpuPitch;
 extern float mpuYaw;
+/* 上报：RC522 RFID 卡片 UID（无卡时 0） */
+extern uint8_t g_rfidUid[4];
+extern uint8_t g_rfidPresent;
 /* 接收：阈值 */
 extern float temperatureMax;
 extern float temperatureMin;
@@ -457,32 +460,36 @@ static unsigned char OneNet_GetParamValue(cJSON *params, const char *key, float 
   */
 unsigned char OneNet_FillBuf(char *buf)
 {
+	/* 只上报 4 路基础数据：温度 / 光照 / 湿度 / 水位。
+	   其余传感器（DHT11、超声波、BH1750、GPS、MPU6050、RFID 等）
+	   的字段已注释掉，需要时再打开。 */
 	snprintf(buf, 768,
 		 "{\"id\":\"123\",\"params\":{"
 		 "\"temperature\":{\"value\":%.2f},"
 		 "\"humidity\":{\"value\":%.2f},"
 		 "\"light\":{\"value\":%.2f},"
-		 "\"waterlevel\":{\"value\":%.2f},"
-		 "\"dhtTemperature\":{\"value\":%.2f},"
-		 "\"dhtHumidity\":{\"value\":%.2f},"
-		 "\"distance\":{\"value\":%.2f},"
-		 "\"bhLight\":{\"value\":%.2f},"
-		 "\"gpsLatitude\":{\"value\":%.6f},"
-		 "\"gpsLongitude\":{\"value\":%.6f},"
-		 "\"gpsAltitude\":{\"value\":%.1f},"
-		 "\"gpsSats\":{\"value\":%.0f},"
-		 "\"gpsSpeed\":{\"value\":%.2f},"
-		 "\"gpsHour\":{\"value\":%.0f},"
-		 "\"gpsMinute\":{\"value\":%.0f},"
-		 "\"gpsSecond\":{\"value\":%.0f},"
-		 "\"roll\":{\"value\":%.2f},"
-		 "\"pitch\":{\"value\":%.2f},"
-		 "\"yaw\":{\"value\":%.2f}"
+		 "\"waterlevel\":{\"value\":%.2f}"
+		 /*
+		 ",\"dhtTemperature\":{\"value\":%.2f}"
+		 ",\"dhtHumidity\":{\"value\":%.2f}"
+		 ",\"distance\":{\"value\":%.2f}"
+		 ",\"bhLight\":{\"value\":%.2f}"
+		 ",\"gpsLatitude\":{\"value\":%.6f}"
+		 ",\"gpsLongitude\":{\"value\":%.6f}"
+		 ",\"gpsAltitude\":{\"value\":%.1f}"
+		 ",\"gpsSats\":{\"value\":%.0f}"
+		 ",\"gpsSpeed\":{\"value\":%.2f}"
+		 ",\"gpsHour\":{\"value\":%.0f}"
+		 ",\"gpsMinute\":{\"value\":%.0f}"
+		 ",\"gpsSecond\":{\"value\":%.0f}"
+		 ",\"roll\":{\"value\":%.2f}"
+		 ",\"pitch\":{\"value\":%.2f}"
+		 ",\"yaw\":{\"value\":%.2f}"
+		 ",\"rfidUid\":{\"value\":%lu}"
+		 ",\"rfidPresent\":{\"value\":%u}"
+		 */
 		 "}}",
-		 temperature, humidity, light, waterlevel, dhtTemperature, dhtHumidity, distance, bhLight,
-		 gpsLatitude, gpsLongitude, gpsAltitude, gpsSats, gpsSpeed,
-		 gpsHour, gpsMinute, gpsSecond,
-		 mpuRoll, mpuPitch, mpuYaw);
+		 temperature, humidity, light, waterlevel);
 
 	return (unsigned char)strlen(buf);
 

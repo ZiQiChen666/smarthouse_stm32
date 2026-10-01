@@ -39,6 +39,8 @@
 #include "gps.h"
 #include "mpu6050.h"
 #include "param.h"
+#include "rc522.h"
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -96,6 +98,11 @@ float gpsSecond    = 0.0f;     /* 秒 0~59 (UTC) */
 float mpuRoll  = 0.0f;         /* 绕 X 轴 度 */
 float mpuPitch = 0.0f;         /* 绕 Y 轴 度 */
 float mpuYaw   = 0.0f;         /* 绕 Z 轴 度（会漂移） */
+
+/* ---- RC522 RFID 卡片（软件 SPI：PA15=CS, PA5=SCK, PA7=MOSI, PA6=MISO） ---- */
+rc522_card_t g_rfidCard;       /* 最近一次读到的卡片 */
+uint8_t      g_rfidPresent = 0;/* 1 = 当前有卡 */
+uint8_t      g_rfidUid[4] = {0,0,0,0};
 
 /* ---- 阈值（仅接收，不上报） ---- */
 float temperatureMax = 50.0f;
@@ -217,6 +224,9 @@ int main(void)
   /* GY-NEO6MV2 GPS（USART3_RX = PB11，中断接收） */
   GPS_Init();
 
+  /* RC522 RFID 读卡模块（软件 SPI：PA15=CS, PA5=SCK, PA7=MOSI, PA6=MISO） */
+  
+
   /* MPU6050/6500 姿态传感器（I2C1，PB6/PB7）
      MPU_Init() 内部已含上电、配置寄存器、读 WHO_AM_I；
      初始化成功后立即做一次陀螺零偏校准（静置约 0.5 秒） */
@@ -255,7 +265,17 @@ int main(void)
     HAL_Delay(500);
   OneNET_Subscribe();
   /* USER CODE END 2 */
-
+	if(RC522_Init() == 0)
+  {
+    uint8_t ver;
+    /* 版本寄存器已在 Init 里读过，这里再打一遍方便确认接线 */
+    UsartPrintf(USART_DEBUG, "[RC522] init ok\r\n");
+    (void)ver;
+  }
+  else
+  {
+    UsartPrintf(USART_DEBUG, "[RC522] init fail (check CS=PA15 SCK=PA5 MOSI=PA7 MISO=PA6)\r\n");
+  }
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -270,6 +290,7 @@ int main(void)
       static uint32_t last_bh = 0;
       static uint32_t last_gps = 0;
       static uint32_t last_mpu = 0;
+      static uint32_t last_rfid = 0;
       static uint32_t last_report = 0;
       static uint32_t last_hb = 0;
       uint32_t now = HAL_GetTick();
@@ -459,7 +480,44 @@ int main(void)
       mpu_done:;
       }
 
-      /* 2g. 每 3 秒把当前值上报到 OneNET */
+      /* 2g. 每 300ms 寻一次 RFID 卡：
+             只有检测到卡时打印 UID；无卡时什么都不打印（完全静默） */
+      if((now - last_rfid) >= 300u)
+      {
+        last_rfid = now;
+
+        rc522_card_t c;
+        uint8_t rc = RC522_ReadCard(&c);
+        if(rc == 0)
+        {
+          /* 检测到卡：打印 UID */
+          UsartPrintf(USART_DEBUG, "[RFID] card UID=%02X%02X%02X%02X\r\n",
+                      c.uid[0], c.uid[1], c.uid[2], c.uid[3]);
+
+          memcpy(g_rfidUid, c.uid, 4);
+          g_rfidCard    = c;
+          g_rfidPresent = 1;
+
+          RC522_Halt();          /* 读完后休眠，避免同一张卡重复触发 */
+        }
+        else
+        {
+          /* 无卡：不打印任何东西，只清标志 */
+          g_rfidPresent = 0;
+
+          /* 调试：每秒最多打印一次失败原因（rc: 2=超时/无卡 3=错误 4/5/6=数据异常） */
+          {
+            static uint32_t last_rfid_log = 0;
+            if((now - last_rfid_log) >= 1000u)
+            {
+              last_rfid_log = now;
+              UsartPrintf(USART_DEBUG, "[RFID] no card (rc=%u)\r\n", rc);
+            }
+          }
+        }
+      }
+
+      /* 2h. 每 3 秒把当前值上报到 OneNET */
       if((now - last_report) >= 3000u)
       {
         last_report = now;
