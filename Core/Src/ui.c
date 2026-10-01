@@ -34,9 +34,10 @@ static uint8_t     s_curve_type = 0;
 static uint8_t     s_need_redraw = 1;
 
 /* curve history: [channel][sample], ring buffer */
-/* 曲线历史：存 uint8_t（0~100），绘图精度足够（纵向只有 51 pixel）。
- * 原来是 float[4][128] = 2048 字节，改成 uint8_t[4][128] = 512 字节。 */
-static uint8_t s_hist[4][CURVE_LEN];
+/* 曲线历史：同时只画一条曲线，所以只需要一维缓冲。
+ * 原来是 uint8_t[4][128] = 512 字节，改成 uint8_t[128] = 128 字节。
+ * 只有进入曲线视图(SCREEN_CURVE_VIEW)时才往里压值。 */
+static uint8_t s_hist[CURVE_LEN];
 static uint8_t s_hist_cnt = 0;
 static uint8_t s_hist_head = 0;
 
@@ -162,13 +163,13 @@ static void ui_draw_curve(void)
     OLED_Draw_Line(0, 12, 0, 63);
     OLED_Draw_Line(0, 63, 127, 63);
 
-    /* one 200ms sample per X pixel, newest sample at x=127 */
+    /* one 200ms sample per X pixel, drawn left-to-right (oldest at x=0) */
     for (i = 0; i < cnt; i++) {
         uint8_t idx = (uint8_t)((s_hist_head + CURVE_LEN - cnt + i) % CURVE_LEN);
-        uint8_t v = s_hist[s_curve_type][idx];   /* 0~100 */
+        uint8_t v = s_hist[idx];   /* 0~100 */
         uint8_t x, y;
         if (v > 100u) v = 100u;
-        x = (uint8_t)(127u - (cnt - 1u - i));   /* right-aligned */
+        x = i;                                  /* left-aligned: oldest at left */
         y = (uint8_t)(63u - (uint16_t)v * 51u / 100u);
         if (i > 0)
             OLED_Draw_Line(prev_x, prev_y, x, y);
@@ -203,6 +204,9 @@ static uint8_t ui_on_confirm(void)
         s_index = 0;
         return 1;
     case SCREEN_CURVE_MENU:
+        /* 进入曲线视图：先清空历史，避免上一个通道的旧数据残留 */
+        s_hist_cnt = 0;
+        s_hist_head = 0;
         s_curve_type = s_index;
         s_screen = SCREEN_CURVE_VIEW;
         return 1;
@@ -301,7 +305,6 @@ void UI_Task(void)
 {
     button_event_t ev;
     uint8_t redraw = 0;
-
     ev = Button_GetEvent(BTN_PB14);
     if (ev == BTN_EVENT_SHORT) redraw |= ui_on_confirm();
 
@@ -332,14 +335,26 @@ static uint8_t ui_clamp_u8(float v)
 
 void UI_PushSample(float t, float h, float l, float w)
 {
-    /* 存成 0~100 的整数，节省 RAM */
-    s_hist[0][s_hist_head] = ui_clamp_u8(t);
-    s_hist[1][s_hist_head] = ui_clamp_u8(h);
-    s_hist[2][s_hist_head] = ui_clamp_u8(l);
-    s_hist[3][s_hist_head] = ui_clamp_u8(w);
-    s_hist_head = (uint8_t)((s_hist_head + 1) % CURVE_LEN);
-    if (s_hist_cnt < CURVE_LEN) s_hist_cnt++;
+    /* 只有进入曲线视图时才记录历史，且只记当前选中的那一路。
+     * 其它界面下完全不占时间也不压值。 */
+    if (s_screen == SCREEN_CURVE_VIEW)
+    {
+        float v;
+        switch (s_curve_type) {
+        case 0:  v = t; break;   /* Temperature */
+        case 1:  v = h; break;   /* Humidity    */
+        case 2:  v = l; break;   /* Light       */
+        default: v = w; break;   /* Waterlevel  */
+        }
 
-    if (s_screen == SCREEN_MEASURE || s_screen == SCREEN_CURVE_VIEW)
+        s_hist[s_hist_head] = ui_clamp_u8(v);   /* 0~100 */
+        s_hist_head = (uint8_t)((s_hist_head + 1) % CURVE_LEN);
+        if (s_hist_cnt < CURVE_LEN) s_hist_cnt++;
+
         s_need_redraw = 1;
+    }
+    else if (s_screen == SCREEN_MEASURE)
+    {
+        s_need_redraw = 1;   /* 测量界面刷新实时值 */
+    }
 }
