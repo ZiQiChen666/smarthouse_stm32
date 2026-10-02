@@ -430,6 +430,11 @@
               <FilePath>../Core/Src/oled.c</FilePath>
             </File>
             <File>
+              <FileName>hz16.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Core/Src/hz16.c</FilePath>
+            </File>
+            <File>
               <FileName>debug.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Core/Src/debug.c</FilePath>

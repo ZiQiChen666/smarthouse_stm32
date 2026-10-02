@@ -1,6 +1,7 @@
 #include "oled.h"
 #include "i2c.h"
 #include "font.h"
+#include "hz16.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -225,5 +226,96 @@ void OLED_Draw_Line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2)
 		yerr += delta_y;
 		if (xerr > distance) { xerr -= distance; uRow += incx; }
 		if (yerr > distance) { yerr -= distance; uCol += incy; }
+	}
+}
+
+/* ============================ 中文 16x16 ============================
+ * 字模格式与 HZ16 一致: 每字 32 字节, 前16字节上半页, 后16字节下半页,
+ * bit0 = 该页最上行。汉字固定占 16 列 x 16 行(两页)。
+ * ==================================================================== */
+
+/* 直接写屏: 在 (x, y) 画一个汉字, y 为页号 */
+void OLED_ShowCN(uint8_t x, uint8_t y, const char *utf8)
+{
+	int idx;
+	const unsigned char *d;
+	uint8_t i;
+
+	if (!g_oled_ok || utf8 == 0) return;
+	idx = HZ16_Index(utf8);
+	if (idx < 0) return;
+	if (x > 111 || y > 6) return;   /* 需要 16 列、2 页 */
+
+	d = HZ16[idx];
+	OLED_SetPos(x, y);
+	for (i = 0; i < 16; i++) OLED_WriteData(d[i]);
+	OLED_SetPos(x, y + 1);
+	for (i = 0; i < 16; i++) OLED_WriteData(d[16 + i]);
+}
+
+/* 直接写屏: 中英混排。ASCII 走 8x16(宽8), 汉字走 16x16(宽16) */
+void OLED_ShowCNString(uint8_t x, uint8_t y, const char *str)
+{
+	if (!g_oled_ok || str == 0) return;
+
+	while (*str != '\0')
+	{
+		unsigned char c = (unsigned char)*str;
+		if (c < 0x80u)
+		{
+			if (x + 8 > 127 || y > 7) break;
+			OLED_ShowChar(x, y, c, 16);
+			x = (uint8_t)(x + 8);
+			str += 1;
+		}
+		else
+		{
+			if (x + 16 > 127 || y > 6) break;
+			OLED_ShowCN(x, y, str);
+			x = (uint8_t)(x + 16);
+			str += ((c & 0xF0u) == 0xE0u) ? 3 : (((c & 0xE0u) == 0xC0u) ? 2 : 4);
+		}
+	}
+}
+
+/* 写显存: 在 (x, y) 画一个汉字, 之后调用 OLED_Refresh() 上屏 */
+void OLED_DrawCN(uint8_t x, uint8_t y, const char *utf8)
+{
+	int idx;
+	const unsigned char *d;
+	uint8_t i;
+
+	if (utf8 == 0) return;
+	idx = HZ16_Index(utf8);
+	if (idx < 0) return;
+	if (x > 111 || y > 6) return;
+
+	d = HZ16[idx];
+	for (i = 0; i < 16; i++) g_oled_gram[x + i][y]     = d[i];
+	for (i = 0; i < 16; i++) g_oled_gram[x + i][y + 1] = d[16 + i];
+}
+
+/* 写显存: 中英混排 */
+void OLED_DrawCNString(uint8_t x, uint8_t y, const char *str)
+{
+	while (*str != '\0')
+	{
+		unsigned char c = (unsigned char)*str;
+		if (c < 0x80u)
+		{
+			uint8_t k;
+			uint8_t cc = (uint8_t)(c - ' ');
+			if (x + 6 > 127 || y > 7) break;
+			for (k = 0; k < 6; k++) g_oled_gram[x + k][y] = F6x8[cc][k];
+			x = (uint8_t)(x + 6);
+			str += 1;
+		}
+		else
+		{
+			if (x + 16 > 127 || y > 6) break;
+			OLED_DrawCN(x, y, str);
+			x = (uint8_t)(x + 16);
+			str += ((c & 0xF0u) == 0xE0u) ? 3 : (((c & 0xE0u) == 0xC0u) ? 2 : 4);
+		}
 	}
 }
